@@ -77,20 +77,38 @@ public class Banker {
 	/**
 	 * The current thread releases nUnits resources.
 	 */
-	public void release(int nUnits) {}
+	public void release(int nUnits) {
+		Thread currentThread = Thread.currentThread();
+		
+		if(!threadMap.containsKey(currentThread) || !(nUnits > 0) || nUnits > threadMap.get(currentThread).get(ALLOCATED)) {
+			System.exit(1);
+		}
+		
+		System.out.printf("Thread %s releases %s units.", currentThread.getName(), nUnits);
+		
+		int allocated = threadMap.get(currentThread).get(ALLOCATED);
+		threadMap.get(currentThread).put(ALLOCATED, allocated - nUnits);
+		// TODO do we need to do anything for remaining? i don't think so.
+		
+		notifyAll();
+		
+		return;
+	}
 	
 	/**
 	 * @return The number of units allocated to the current thread
 	 */
 	public int allocated() {
-		return 0;
+		Thread currentThread = Thread.currentThread();
+		return threadMap.get(currentThread).get(ALLOCATED);
 	}
 	
 	/**
 	 * @return The number of units remaining in the current thread's claim.
 	 */
 	public int remaining() {
-		return 0;
+		Thread currentThread = Thread.currentThread();
+		return threadMap.get(currentThread).get(REMAINING);
 	}
 	
 	private boolean isStateSafe(int numberOfUnitsOnHand, Map<Thread, Map<String, Integer>> map) {
