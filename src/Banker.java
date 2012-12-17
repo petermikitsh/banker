@@ -66,9 +66,20 @@ public class Banker {
 			
 			return true;
 		} else {
-			System.out.printf("Thread %s waits.", currentThread.getName());
-			//TODO add false condition
-			return false;
+			while(!isStateSafe(nUnits, Collections.unmodifiableMap(threadMap))) {
+				System.out.printf("Thread %s waits.", currentThread.getName());
+				try {
+					wait();
+				} catch (InterruptedException ie) {
+					System.err.println("Error: " + ie.getMessage() );
+				}
+			}
+			
+			notifyAll();
+			
+			System.out.printf("Thread %s awakened.", currentThread.getName());
+			
+			return request(nUnits);
 		}
 
 		
@@ -136,7 +147,7 @@ public class Banker {
 		// need to get the value using unsortedMap.get(key)
 		Comparator<K> comparator =  new Comparator<K>() {
 		    public int compare(K obj1, K obj2) {
-		    	// Sort uisng the remaining units.
+		    	// Sort using the remaining units.
 		    	return unsortedMap.get(obj1).get(REMAINING).compareTo(unsortedMap.get(obj2).get(REMAINING));
 		    }
 		};
