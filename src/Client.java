@@ -3,7 +3,7 @@
  * @authors mdy7643, pam3961, acc1728
  *
  */
-public class Client extends Thread {
+public class Client extends Thread implements Comparable {
 
 	private Banker banker;
 	private int nUnits;
@@ -28,6 +28,10 @@ public class Client extends Thread {
 		banker.setClaim(nUnits);
 		for (int i = 0; i <= nRequests; i++) {
 			makeTransaction(i);
+			if(banker.remaining() == 0) {
+				break;
+			}
+			
 			try {
 				Thread.sleep((long) ((maxSleepMillis-minSleepMillis * Math.random()) + minSleepMillis));
 			} catch (InterruptedException e) {
@@ -35,7 +39,11 @@ public class Client extends Thread {
 			}
 		}
 		if (banker.allocated() > 0) {
-			banker.release(nUnits);
+			// TODO this we need to change to release only those that are allocated to this thread
+			// otherwise we'll prematurely hit exit(1) condition since 99% of the time nUnits will always
+			// be larger than the allocated units, unless of course we never are successfully completing requests
+			// banker.release(nUnits); // old approach
+			banker.release(banker.allocated());
 		}
 	}
 	
@@ -43,11 +51,15 @@ public class Client extends Thread {
 		if (banker.remaining() == 0) {
 			banker.release(nUnits);
 			return;
-		} if (i % 2 == 0) {
-			banker.request(nUnits);
-		} else { 
-			banker.release(nUnits);
+		} else {
+			int randNUnits = (int)((banker.remaining() - 1) * Math.random()) + 1;
+			banker.request(randNUnits);
 		}
+	}
+
+	@Override
+	public int compareTo(Object o) {
+		return 0;
 	}
 	
 }

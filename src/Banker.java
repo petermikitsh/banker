@@ -3,6 +3,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Banker.java
@@ -16,7 +17,7 @@ public class Banker {
 	private final String CURRENT   = "current_claim";
 	
 	private int nUnits;
-	private Map<Thread, Map<String, Integer>> threadMap = new TreeMap<Thread, Map<String, Integer>>();
+	private Map<String, Map<String, Integer>> threadMap = new ConcurrentHashMap<String, Map<String, Integer>>();
 	
 	public Banker(int nUnits) {
 		this.nUnits = nUnits;
@@ -28,7 +29,10 @@ public class Banker {
 	public void setClaim(int nUnits) {
 		Thread currentThread = Thread.currentThread();
 		
-		if(threadMap.containsKey(currentThread) || !(nUnits > 0) || nUnits > this.nUnits) {
+		
+		
+		if(threadMap.get(currentThread.getName()) != null || !(nUnits > 0) || nUnits > this.nUnits) {
+			System.err.println("exited3");
 			System.exit(1);
 		}
 		
@@ -36,9 +40,10 @@ public class Banker {
 		map.put(ALLOCATED, 0);
 		map.put(CURRENT, nUnits);
 		map.put(REMAINING, nUnits);
-		threadMap.put(currentThread, map);
 		
-		System.out.printf("Thread %s sets a claim for %s units.", currentThread.getName(), nUnits);
+		threadMap.put(currentThread.getName(), map);
+		
+		System.out.printf("Thread %s sets a claim for %s units.\n", currentThread.getName(), nUnits);
 		
 		return;
 	}
@@ -51,36 +56,45 @@ public class Banker {
 		
 		Thread currentThread = Thread.currentThread();
 		
-		if(!threadMap.containsKey(currentThread) || !(nUnits > 0) || nUnits > threadMap.get(currentThread).get(REMAINING)) {
+		if(!threadMap.containsKey(currentThread.getName()) || !(nUnits > 0) || nUnits > threadMap.get(currentThread.getName()).get(REMAINING)) {
+			System.err.println("exited1");
 			System.exit(1);
 		}
 		
-		System.out.printf("Thread %s requests %s units.", currentThread.getName(), nUnits);
-		
-		if(isStateSafe(nUnits, Collections.unmodifiableMap(threadMap))) {
-			System.out.printf("Thread %s has %s units allocated.", currentThread.getName(), nUnits);
-			int allocated = threadMap.get(currentThread).get(ALLOCATED);
-			int remaining = threadMap.get(currentThread).get(REMAINING);
-			threadMap.get(currentThread).put(ALLOCATED, allocated + nUnits);
-			threadMap.get(currentThread).put(REMAINING, remaining - nUnits);
+		System.out.printf("Thread %s requests %s units.\n", currentThread.getName(), nUnits);
+				
+		if(isStateSafe(this.nUnits, Collections.unmodifiableMap(threadMap))) {
+			System.out.printf("Thread %s has %s units allocated.\n", currentThread.getName(), nUnits);
+			int allocated = threadMap.get(currentThread.getName()).get(ALLOCATED);
+			int remaining = threadMap.get(currentThread.getName()).get(REMAINING);
+			threadMap.get(currentThread.getName()).put(ALLOCATED, allocated + nUnits);
+			threadMap.get(currentThread.getName()).put(REMAINING, remaining - nUnits);
+			
+			synchronized(currentThread) {
+				this.nUnits -= nUnits;
+			}
 			
 			return true;
-		} else {
-			while(!isStateSafe(nUnits, Collections.unmodifiableMap(threadMap))) {
-				System.out.printf("Thread %s waits.", currentThread.getName());
+		}
+		
+			while(!isStateSafe(this.nUnits, Collections.unmodifiableMap(threadMap))) {
+				System.out.printf("Thread %s waits.\n", currentThread.getName());
 				try {
-					wait();
+					synchronized(currentThread) {
+						currentThread.wait();
+					}
 				} catch (InterruptedException ie) {
 					System.err.println("Error: " + ie.getMessage() );
 				}
 			}
 			
-			notifyAll();
+			///notifyAll();
 			
-			System.out.printf("Thread %s awakened.", currentThread.getName());
+			System.out.printf("Thread %s awakened.\n", currentThread.getName());
 			
+			//request(nUnits);
 			return request(nUnits);
-		}
+		
 
 		
 	}
@@ -88,17 +102,23 @@ public class Banker {
 	/**
 	 * The current thread releases nUnits resources.
 	 */
-	public void release(int nUnits) {
+	public synchronized void release(int nUnits) {
 		Thread currentThread = Thread.currentThread();
 		
-		if(!threadMap.containsKey(currentThread) || !(nUnits > 0) || nUnits > threadMap.get(currentThread).get(ALLOCATED)) {
+		if(!threadMap.containsKey(currentThread.getName()) || !(nUnits > 0) || nUnits > threadMap.get(currentThread.getName()).get(ALLOCATED)) {
+			System.err.println("exited2");
 			System.exit(1);
 		}
 		
-		System.out.printf("Thread %s releases %s units.", currentThread.getName(), nUnits);
+		System.out.printf("Thread %s releases %s units.\n", currentThread.getName(), nUnits);
 		
-		int allocated = threadMap.get(currentThread).get(ALLOCATED);
-		threadMap.get(currentThread).put(ALLOCATED, allocated - nUnits);
+		int allocated = threadMap.get(currentThread.getName()).get(ALLOCATED);
+		threadMap.get(currentThread.getName()).put(ALLOCATED, allocated - nUnits);
+		
+		synchronized(currentThread) {
+			this.nUnits += nUnits;
+		}
+		
 		// TODO do we need to do anything for remaining? i don't think so.
 		
 		notifyAll();
@@ -111,7 +131,7 @@ public class Banker {
 	 */
 	public int allocated() {
 		Thread currentThread = Thread.currentThread();
-		return threadMap.get(currentThread).get(ALLOCATED);
+		return threadMap.get(currentThread.getName()).get(ALLOCATED);
 	}
 	
 	/**
@@ -119,11 +139,11 @@ public class Banker {
 	 */
 	public int remaining() {
 		Thread currentThread = Thread.currentThread();
-		return threadMap.get(currentThread).get(REMAINING);
+		return threadMap.get(currentThread.getName()).get(REMAINING);
 	}
 	
-	private boolean isStateSafe(int numberOfUnitsOnHand, Map<Thread, Map<String, Integer>> map) {
-		Map<Thread, Map<String, Integer>> sortedMap = sortMap(map);
+	private boolean isStateSafe(int numberOfUnitsOnHand, Map<String, Map<String, Integer>> map) {
+		Map<String, Map<String, Integer>> sortedMap = sortMap(map);
 		
 		// This is sorted according to remaining units in ascending order.
 		for(Map<String, Integer> threadDetail : sortedMap.values()) {
@@ -142,17 +162,20 @@ public class Banker {
 	 * @param unsortedMap The map to sort. Must be made final to access it within the inner class.
 	 * @return A sorted version of this unsortedMap based on remaining units.
 	 */
-	private <K, M, V extends Comparable<V>> Map<K, Map<M, V>> sortMap(final Map<K, Map<M, V>> unsortedMap) {
+	private Map<String, Map<String, Integer>> sortMap(final Map<String, Map<String, Integer>> unsortedMap) {
 		// Comparator only works on the key set for TreeMap. So when we compare 2 keys, we'll
 		// need to get the value using unsortedMap.get(key)
-		Comparator<K> comparator =  new Comparator<K>() {
-		    public int compare(K obj1, K obj2) {
+		Comparator<String> comparator =  new Comparator<String>() {
+		    public int compare(String obj1, String obj2) {
 		    	// Sort using the remaining units.
-		    	return unsortedMap.get(obj1).get(REMAINING).compareTo(unsortedMap.get(obj2).get(REMAINING));
+		    	Integer obj1_remaining = unsortedMap.get(obj1).get(REMAINING);
+		    	Integer obj2_remaining = unsortedMap.get(obj2).get(REMAINING);
+		    	
+		    	return obj1_remaining.compareTo(obj2_remaining) == 0 ? 1 : obj1_remaining.compareTo(obj2_remaining);
 		    }
 		};
 		
-		Map<K, Map<M, V>> sortedMap = new TreeMap<K, Map<M, V>>(comparator);
+		Map<String, Map<String, Integer>> sortedMap = new TreeMap<String, Map<String, Integer>>(comparator);
 		sortedMap.putAll(unsortedMap);
 		
 		return sortedMap;

@@ -11,8 +11,8 @@ public class Driver {
 	private final static int nBUnits = 8;
 	// Number of Clients.
 	private final static int nClients = 3;
-	// Number of resources to register for each Client.
-	private final static int nCUnits = 4;
+	// Max number of resources to register for each Client.
+	private final static int maxNCUnits = 6;
 	// Number of requests for each Client.
 	private final static int nRequests = 2;
 	// Minimum number of milliseconds for each client to sleep.
@@ -28,9 +28,10 @@ public class Driver {
 		
 		// Create each of the clients and start them.
 		for (int i = 0; i < nClients; i++) {
+
 			clients[i] = ( new Client ( "Client " + (i + 1),
 					banker,
-					nCUnits,
+					(int)((maxNCUnits - 1) * Math.random()) + 1,
 					nRequests,
 					minSleepMillis,
 					maxSleepMillis
