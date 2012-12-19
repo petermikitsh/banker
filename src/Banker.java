@@ -52,7 +52,7 @@ public class Banker {
 	 * The current thread requests nUnits more resources.
 	 * @return True if request is successful.
 	 */
-	public boolean request(int nUnits) {
+	public synchronized boolean request(int nUnits) {
 		
 		Thread currentThread = Thread.currentThread();
 		
@@ -70,30 +70,23 @@ public class Banker {
 			threadMap.get(currentThread.getName()).put(ALLOCATED, allocated + nUnits);
 			threadMap.get(currentThread.getName()).put(REMAINING, remaining - nUnits);
 			
-			synchronized(currentThread) {
-				this.nUnits -= nUnits;
-			}
+			this.nUnits -= nUnits;
 			
 			return true;
 		}
 		
-			while(!isStateSafe(this.nUnits, Collections.unmodifiableMap(threadMap))) {
-				System.out.printf("Thread %s waits.\n", currentThread.getName());
-				try {
-					synchronized(currentThread) {
-						currentThread.wait();
-					}
-				} catch (InterruptedException ie) {
-					System.err.println("Error: " + ie.getMessage() );
-				}
+		while(!isStateSafe(this.nUnits, Collections.unmodifiableMap(threadMap))) {
+			System.out.printf("Thread %s waits.\n", currentThread.getName());
+			try {
+				wait();
+			} catch (InterruptedException ie) {
+				System.err.println("Error: " + ie.getMessage() );
 			}
+		}
 			
-			///notifyAll();
+		System.out.printf("Thread %s awakened.\n", currentThread.getName());
 			
-			System.out.printf("Thread %s awakened.\n", currentThread.getName());
-			
-			//request(nUnits);
-			return request(nUnits);
+		return request(nUnits);
 		
 
 		
@@ -162,7 +155,7 @@ public class Banker {
 	 * @param unsortedMap The map to sort. Must be made final to access it within the inner class.
 	 * @return A sorted version of this unsortedMap based on remaining units.
 	 */
-	private Map<String, Map<String, Integer>> sortMap(final Map<String, Map<String, Integer>> unsortedMap) {
+	private synchronized Map<String, Map<String, Integer>> sortMap(final Map<String, Map<String, Integer>> unsortedMap) {
 		// Comparator only works on the key set for TreeMap. So when we compare 2 keys, we'll
 		// need to get the value using unsortedMap.get(key)
 		Comparator<String> comparator =  new Comparator<String>() {

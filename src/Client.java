@@ -3,7 +3,7 @@
  * @authors mdy7643, pam3961, acc1728
  *
  */
-public class Client extends Thread implements Comparable {
+public class Client extends Thread {
 
 	private Banker banker;
 	private int nUnits;
@@ -55,11 +55,6 @@ public class Client extends Thread implements Comparable {
 			int randNUnits = (int)((banker.remaining() - 1) * Math.random()) + 1;
 			banker.request(randNUnits);
 		}
-	}
-
-	@Override
-	public int compareTo(Object o) {
-		return 0;
 	}
 	
 }
