@@ -32,7 +32,6 @@ public class Banker {
 		
 		
 		if(threadMap.get(currentThread.getName()) != null || !(nUnits > 0) || nUnits > this.nUnits) {
-			System.err.println("exited3");
 			System.exit(1);
 		}
 		
@@ -57,13 +56,13 @@ public class Banker {
 		Thread currentThread = Thread.currentThread();
 		
 		if(!threadMap.containsKey(currentThread.getName()) || !(nUnits > 0) || nUnits > threadMap.get(currentThread.getName()).get(REMAINING)) {
-			System.err.println("exited1");
 			System.exit(1);
 		}
 		
 		System.out.printf("Thread %s requests %s units.\n", currentThread.getName(), nUnits);
-				
+		
 		if(isStateSafe(this.nUnits, Collections.unmodifiableMap(threadMap))) {
+			
 			System.out.printf("Thread %s has %s units allocated.\n", currentThread.getName(), nUnits);
 			int allocated = threadMap.get(currentThread.getName()).get(ALLOCATED);
 			int remaining = threadMap.get(currentThread.getName()).get(REMAINING);
@@ -87,9 +86,6 @@ public class Banker {
 		System.out.printf("Thread %s awakened.\n", currentThread.getName());
 			
 		return request(nUnits);
-		
-
-		
 	}
 	
 	/**
@@ -99,7 +95,6 @@ public class Banker {
 		Thread currentThread = Thread.currentThread();
 		
 		if(!threadMap.containsKey(currentThread.getName()) || !(nUnits > 0) || nUnits > threadMap.get(currentThread.getName()).get(ALLOCATED)) {
-			System.err.println("exited2");
 			System.exit(1);
 		}
 		
@@ -135,7 +130,7 @@ public class Banker {
 		return threadMap.get(currentThread.getName()).get(REMAINING);
 	}
 	
-	private boolean isStateSafe(int numberOfUnitsOnHand, Map<String, Map<String, Integer>> map) {
+	private synchronized boolean isStateSafe(int numberOfUnitsOnHand, Map<String, Map<String, Integer>> map) {
 		Map<String, Map<String, Integer>> sortedMap = sortMap(map);
 		
 		// This is sorted according to remaining units in ascending order.

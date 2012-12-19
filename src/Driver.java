@@ -12,7 +12,7 @@ public class Driver {
 	// Number of Clients.
 	private final static int nClients = 3;
 	// Max number of resources to register for each Client.
-	private final static int maxNCUnits = 8;
+	private final static int maxNCUnits = 6;
 	// Number of requests for each Client.
 	private final static int nRequests = 2;
 	// Minimum number of milliseconds for each client to sleep.
